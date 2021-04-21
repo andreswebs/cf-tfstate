@@ -1,0 +1,70 @@
+---
+AWSTemplateFormatVersion: "2010-09-09"
+
+Description: DynamoDB table for configuration variables
+
+Metadata:
+
+  AWS::CloudFormation::Interface:
+    ParameterLabels:
+      TableName:
+        default: Table Name
+      ParameterName:
+        default: Parameter Name
+    ParameterGroups:
+      - Label:
+          default: DynamoDB
+        Parameters:
+          - TableName
+      - Label:
+          default: SSM
+        Parameters:
+          - ParameterName
+
+Parameters:
+  TableName:
+    Description: Name of the DynamoDB table
+    Type: String
+
+  ParameterName:
+    Type: String
+    Description: (Optional) Name of an SSM parameter to store the table name
+    Default: ""
+
+Conditions:
+  GenerateParameter: !Not [!Equals [!Ref ParameterName, ""]]
+
+Resources:
+  DbTable:
+    DeletionPolicy: Retain
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Ref TableName
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: LockID
+          AttributeType: S
+      KeySchema:
+        - AttributeName: LockID
+          KeyType: HASH
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      SSESpecification:
+        SSEEnabled: true
+
+  SSMParameter:
+    Condition: GenerateParameter
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: !Ref ParameterName
+      Value: !Ref DbTable
+
+Outputs:
+  DbTableName:
+    Description: Name of the DynamoDB table
+    Value: !Ref DbTable
+  SSMParameterName:
+    Condition: GenerateParameter
+    Description: Name of the SSM parameter
+    Value: !Ref SSMParameter
