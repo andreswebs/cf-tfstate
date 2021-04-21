@@ -1,6 +1,6 @@
 # cf-tfstate
 
-CloudFormation templates for an S3 bucket and DynamoDB database 
+CloudFormation template for an S3 bucket and DynamoDB database 
 configured for storing Terraform remote state.
 
 ## Authors
