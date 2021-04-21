@@ -53,6 +53,13 @@ Resources:
         BlockPublicPolicy: true
         IgnorePublicAcls: true
         RestrictPublicBuckets: true
+      VersioningConfiguration:
+        Status: Enabled
+      LifecycleConfiguration:
+        Rules:
+          - Id: NonCurrentVersionHandling
+            Status: Enabled
+            NoncurrentVersionExpirationInDays: 90
 
   SSMParameter:
     Condition: GenerateParameter
