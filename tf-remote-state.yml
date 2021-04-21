@@ -1,0 +1,136 @@
+---
+AWSTemplateFormatVersion: "2010-09-09"
+
+Description: S3 bucket and DynamoDB table for Terraform remote state
+
+Metadata:
+
+  AWS::CloudFormation::Interface:
+    ParameterLabels:
+      TableName:
+        default: Table Name
+      BucketName:
+        default: Bucket Name
+      BucketParameterName:
+        default: Bucket Parameter Name
+      TableParameterName:
+        default: Table Parameter Name
+    ParameterGroups:
+      - Label:
+          default: Configuration
+        Parameters:
+          - BucketName
+          - TableName
+          - BucketParameterName
+          - TableParameterName
+
+Parameters:
+  BucketName:
+    Description: Name of the S3 bucket
+    Type: String
+    Default: ""
+
+  TableName:
+    Description: Name of the DynamoDB table
+    Type: String
+    Default: ""
+
+  BucketParameterName:
+    Type: String
+    Description: (Optional) Name of an SSM parameter to store the bucket name
+    Default: ""
+
+  TableParameterName:
+    Type: String
+    Description: (Optional) Name of an SSM parameter to store the table name
+    Default: ""
+
+Conditions:
+  GenerateBucketName: !Equals [!Ref BucketName, ""]
+  GenerateTableName: !Equals [!Ref BucketName, ""]
+  GenerateBucketParameter: !Not [!Equals [!Ref BucketParameterName, ""]]
+  GenerateTableParameter: !Not [!Equals [!Ref TableParameterName, ""]]
+
+Resources:
+  S3Bucket:
+    DeletionPolicy: Retain
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !If
+        - GenerateBucketName
+        - !Ref AWS::NoValue
+        - !Ref BucketName
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      VersioningConfiguration:
+        Status: Enabled
+      LifecycleConfiguration:
+        Rules:
+          - Id: NonCurrentVersionHandling
+            Status: Enabled
+            NoncurrentVersionExpirationInDays: 90
+
+  DbTable:
+    DeletionPolicy: Retain
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !If
+        - GenerateTableName
+        - !Ref AWS::NoValue
+        - !Ref TableName
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: LockID
+          AttributeType: S
+      KeySchema:
+        - AttributeName: LockID
+          KeyType: HASH
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      SSESpecification:
+        SSEEnabled: true
+
+  BucketParameter:
+    Condition: GenerateBucketParameter
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: !Ref BucketParameterName
+      Value: !Ref S3Bucket
+
+  TableParameter:
+    Condition: GenerateTableParameter
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: !Ref TableParameterName
+      Value: !Ref DbTable
+
+Outputs:
+  BucketName:
+    Description: S3 bucket name
+    Value: !Ref S3Bucket
+  BucketArn:
+    Description: S3 bucket ARN
+    Value: !GetAtt S3Bucket.Arn
+  DbTableName:
+    Description: DynamoDB table name
+    Value: !Ref DbTable
+  DbTableArn:
+    Description: DynamoDB table ARN
+    Value: !GetAtt DbTable.Arn
+  BucketParameterName:
+    Condition: GenerateBucketParameter
+    Description: Name of the SSM parameter
+    Value: !Ref BucketParameter
+  TableParameterName:
+    Condition: GenerateTableParameter
+    Description: Name of the SSM parameter
+    Value: !Ref TableParameter

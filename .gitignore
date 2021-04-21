@@ -1,2 +1,3 @@
-params/
-!params/.gitkeep
+**/params/
+!**/params/.gitkeep
+!**/params/example/
