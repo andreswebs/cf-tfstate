@@ -33,7 +33,7 @@ Parameters:
   TableName:
     Description: Name of the DynamoDB table
     Type: String
-    Default: ""
+    Default: "tfstate-lock"
 
   BucketParameterName:
     Type: String
