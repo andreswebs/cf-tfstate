@@ -1,7 +1,7 @@
 ---
 AWSTemplateFormatVersion: "2010-09-09"
 
-Description: S3 bucket and DynamoDB table for Terraform remote state
+Description: S3 bucket, DynamoDB table, and KMS key for Terraform remote state
 
 Metadata:
 
@@ -11,9 +11,13 @@ Metadata:
         default: Table Name
       BucketName:
         default: Bucket Name
+      KeyName:
+        default: Key Name
       BucketParameterName:
         default: Bucket Parameter Name
       TableParameterName:
+        default: Table Parameter Name
+      KeyParameterName:
         default: Table Parameter Name
     ParameterGroups:
       - Label:
@@ -21,8 +25,10 @@ Metadata:
         Parameters:
           - BucketName
           - TableName
+          - KeyName
           - BucketParameterName
           - TableParameterName
+          - KeyParameterName
 
 Parameters:
   BucketName:
@@ -35,6 +41,11 @@ Parameters:
     Type: String
     Default: "tfstate-lock"
 
+  KeyName:
+    Description: Name of the KMS key in `alias/<KeyName>`
+    Type: String
+    Default: "tfstate"
+
   BucketParameterName:
     Type: String
     Description: (Optional) Name of an SSM parameter to store the bucket name
@@ -45,13 +56,46 @@ Parameters:
     Description: (Optional) Name of an SSM parameter to store the table name
     Default: ""
 
+  KeyParameterName:
+    Type: String
+    Description: (Optional) Name of an SSM parameter to store the key name
+    Default: ""
+
+
+
 Conditions:
   GenerateBucketName: !Equals [!Ref BucketName, ""]
-  GenerateTableName: !Equals [!Ref BucketName, ""]
+  GenerateTableName: !Equals [!Ref TableName, ""]
+  GeneratKeyName: !Equals [!Ref KeyName, ""]
   GenerateBucketParameter: !Not [!Equals [!Ref BucketParameterName, ""]]
   GenerateTableParameter: !Not [!Equals [!Ref TableParameterName, ""]]
+  GenerateKeyParameter: !Not [!Equals [!Ref KeyParameterName, ""]]
 
 Resources:
+
+  KmsKey:
+    Type: "AWS::KMS::Key"
+    DeletionPolicy: Retain
+    Properties:
+      Description: "KMS key for S3 encryption"
+      KeyPolicy:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: "Enable IAM User Permissions"
+            Effect: "Allow"
+            Principal:
+              AWS: !Sub "arn:aws:iam::${AWS::AccountId}:root"
+            Action:
+              - "kms:*"
+            Resource: "*"
+
+  KeyAlias:
+    Type: "AWS::KMS::Alias"
+    DeletionPolicy: Retain
+    Properties:
+      AliasName: !Sub "alias/${KeyName}"
+      TargetKeyId: !Ref KmsKey
+
   S3Bucket:
     DeletionPolicy: Retain
     Type: AWS::S3::Bucket
@@ -63,7 +107,8 @@ Resources:
       BucketEncryption:
         ServerSideEncryptionConfiguration:
           - ServerSideEncryptionByDefault:
-              SSEAlgorithm: AES256
+              SSEAlgorithm: "aws:kms"
+              KMSMasterKeyID: !Ref KeyAlias
       PublicAccessBlockConfiguration:
         BlockPublicAcls: true
         BlockPublicPolicy: true
@@ -75,7 +120,7 @@ Resources:
         Rules:
           - Id: NonCurrentVersionHandling
             Status: Enabled
-            NoncurrentVersionExpirationInDays: 90
+            NoncurrentVersionExpirationInDays: 365
 
   DbTable:
     DeletionPolicy: Retain
@@ -113,6 +158,14 @@ Resources:
       Name: !Ref TableParameterName
       Value: !Ref DbTable
 
+  KeyParameter:
+    Condition: GenerateKeyParameter
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: !Ref KeyParameterName
+      Value: !Ref KeyName
+
 Outputs:
   BucketName:
     Description: S3 bucket name
@@ -126,6 +179,12 @@ Outputs:
   DbTableArn:
     Description: DynamoDB table ARN
     Value: !GetAtt DbTable.Arn
+  KeyAlias:
+    Description: KMS Key alias
+    Value: !Ref KeyAlias
+  DbTableArn:
+    Description: DynamoDB table ARN
+    Value: !GetAtt DbTable.Arn
   BucketParameterName:
     Condition: GenerateBucketParameter
     Description: Name of the SSM parameter
@@ -134,3 +193,7 @@ Outputs:
     Condition: GenerateTableParameter
     Description: Name of the SSM parameter
     Value: !Ref TableParameter
+  KeyParameterName:
+    Condition: GenerateKeyParameter
+    Description: Name of the SSM parameter
+    Value: !Ref KeyParameter
