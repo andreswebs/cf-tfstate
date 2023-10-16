@@ -66,7 +66,6 @@ Parameters:
 Conditions:
   GenerateBucketName: !Equals [!Ref BucketName, ""]
   GenerateTableName: !Equals [!Ref TableName, ""]
-  GeneratKeyName: !Equals [!Ref KeyName, ""]
   GenerateBucketParameter: !Not [!Equals [!Ref BucketParameterName, ""]]
   GenerateTableParameter: !Not [!Equals [!Ref TableParameterName, ""]]
   GenerateKeyParameter: !Not [!Equals [!Ref KeyParameterName, ""]]
@@ -74,7 +73,7 @@ Conditions:
 Resources:
 
   KmsKey:
-    Type: "AWS::KMS::Key"
+    Type: AWS::KMS::Key
     DeletionPolicy: Retain
     Properties:
       Description: "KMS key for S3 encryption"
@@ -90,7 +89,7 @@ Resources:
             Resource: "*"
 
   KeyAlias:
-    Type: "AWS::KMS::Alias"
+    Type: AWS::KMS::Alias
     DeletionPolicy: Retain
     Properties:
       AliasName: !Sub "alias/${KeyName}"
@@ -182,9 +181,6 @@ Outputs:
   KeyAlias:
     Description: KMS Key alias
     Value: !Ref KeyAlias
-  DbTableArn:
-    Description: DynamoDB table ARN
-    Value: !GetAtt DbTable.Arn
   BucketParameterName:
     Condition: GenerateBucketParameter
     Description: Name of the SSM parameter
