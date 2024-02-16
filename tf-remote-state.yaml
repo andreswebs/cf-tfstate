@@ -18,7 +18,7 @@ Metadata:
       TableParameterName:
         default: Table Parameter Name
       KeyParameterName:
-        default: Table Parameter Name
+        default: Key Parameter Name
     ParameterGroups:
       - Label:
           default: Configuration
@@ -76,12 +76,12 @@ Resources:
     Type: AWS::KMS::Key
     DeletionPolicy: Retain
     Properties:
-      Description: "KMS key for S3 encryption"
+      Description: KMS key for S3 encryption
       KeyPolicy:
         Version: "2012-10-17"
         Statement:
-          - Sid: "Enable IAM User Permissions"
-            Effect: "Allow"
+          - Sid: Enable IAM User Permissions
+            Effect: Allow
             Principal:
               AWS: !Sub "arn:aws:iam::${AWS::AccountId}:root"
             Action:
@@ -96,8 +96,8 @@ Resources:
       TargetKeyId: !Ref KmsKey
 
   S3Bucket:
-    DeletionPolicy: Retain
     Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
     Properties:
       BucketName: !If
         - GenerateBucketName
@@ -122,8 +122,8 @@ Resources:
             NoncurrentVersionExpirationInDays: 365
 
   DbTable:
-    DeletionPolicy: Retain
     Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
     Properties:
       TableName: !If
         - GenerateTableName
@@ -144,6 +144,7 @@ Resources:
   BucketParameter:
     Condition: GenerateBucketParameter
     Type: AWS::SSM::Parameter
+    DeletionPolicy: Retain
     Properties:
       Type: String
       Name: !Ref BucketParameterName
@@ -152,6 +153,7 @@ Resources:
   TableParameter:
     Condition: GenerateTableParameter
     Type: AWS::SSM::Parameter
+    DeletionPolicy: Retain
     Properties:
       Type: String
       Name: !Ref TableParameterName
@@ -160,6 +162,7 @@ Resources:
   KeyParameter:
     Condition: GenerateKeyParameter
     Type: AWS::SSM::Parameter
+    DeletionPolicy: Retain
     Properties:
       Type: String
       Name: !Ref KeyParameterName
