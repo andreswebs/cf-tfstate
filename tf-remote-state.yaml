@@ -61,8 +61,6 @@ Parameters:
     Description: (Optional) Name of an SSM parameter to store the key name
     Default: ""
 
-
-
 Conditions:
   GenerateBucketName: !Equals [!Ref BucketName, ""]
   GenerateTableName: !Equals [!Ref TableName, ""]
