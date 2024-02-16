@@ -4,7 +4,6 @@ AWSTemplateFormatVersion: "2010-09-09"
 Description: S3 bucket, DynamoDB table, and KMS key for Terraform remote state
 
 Metadata:
-
   AWS::CloudFormation::Interface:
     ParameterLabels:
       TableName:
@@ -39,12 +38,12 @@ Parameters:
   TableName:
     Description: Name of the DynamoDB table
     Type: String
-    Default: "tfstate-lock"
+    Default: tfstate-lock
 
   KeyName:
     Description: Name of the KMS key in `alias/<KeyName>`
     Type: String
-    Default: "tfstate"
+    Default: tfstate
 
   BucketParameterName:
     Type: String
@@ -64,16 +63,15 @@ Parameters:
 Conditions:
   GenerateBucketName: !Equals [!Ref BucketName, ""]
   GenerateTableName: !Equals [!Ref TableName, ""]
-  GeneratKeyName: !Equals [!Ref KeyName, ""]
   GenerateBucketParameter: !Not [!Equals [!Ref BucketParameterName, ""]]
   GenerateTableParameter: !Not [!Equals [!Ref TableParameterName, ""]]
   GenerateKeyParameter: !Not [!Equals [!Ref KeyParameterName, ""]]
 
 Resources:
-
   KmsKey:
     Type: AWS::KMS::Key
     DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
     Properties:
       Description: KMS key for S3 encryption
       KeyPolicy:
@@ -82,7 +80,7 @@ Resources:
           - Sid: Enable IAM User Permissions
             Effect: Allow
             Principal:
-              AWS: !Sub "arn:aws:iam::${AWS::AccountId}:root"
+              AWS: !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:root"
             Action:
               - "kms:*"
             Resource: "*"
@@ -90,6 +88,7 @@ Resources:
   KeyAlias:
     Type: AWS::KMS::Alias
     DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
     Properties:
       AliasName: !Sub "alias/${KeyName}"
       TargetKeyId: !Ref KmsKey
@@ -97,6 +96,7 @@ Resources:
   S3Bucket:
     Type: AWS::S3::Bucket
     DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
     Properties:
       BucketName: !If
         - GenerateBucketName
@@ -123,6 +123,7 @@ Resources:
   DbTable:
     Type: AWS::DynamoDB::Table
     DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
     Properties:
       TableName: !If
         - GenerateTableName
@@ -144,6 +145,7 @@ Resources:
     Condition: GenerateBucketParameter
     Type: AWS::SSM::Parameter
     DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
     Properties:
       Type: String
       Name: !Ref BucketParameterName
@@ -153,6 +155,7 @@ Resources:
     Condition: GenerateTableParameter
     Type: AWS::SSM::Parameter
     DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
     Properties:
       Type: String
       Name: !Ref TableParameterName
@@ -162,6 +165,7 @@ Resources:
     Condition: GenerateKeyParameter
     Type: AWS::SSM::Parameter
     DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
     Properties:
       Type: String
       Name: !Ref KeyParameterName
@@ -183,9 +187,6 @@ Outputs:
   KeyAlias:
     Description: KMS Key alias
     Value: !Ref KeyAlias
-  DbTableArn:
-    Description: DynamoDB table ARN
-    Value: !GetAtt DbTable.Arn
   BucketParameterName:
     Condition: GenerateBucketParameter
     Description: Name of the SSM parameter
