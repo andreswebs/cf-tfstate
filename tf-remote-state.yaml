@@ -66,6 +66,7 @@ Parameters:
 Conditions:
   GenerateBucketName: !Equals [!Ref BucketName, ""]
   GenerateTableName: !Equals [!Ref TableName, ""]
+  GeneratKeyName: !Equals [!Ref KeyName, ""]
   GenerateBucketParameter: !Not [!Equals [!Ref BucketParameterName, ""]]
   GenerateTableParameter: !Not [!Equals [!Ref TableParameterName, ""]]
   GenerateKeyParameter: !Not [!Equals [!Ref KeyParameterName, ""]]
@@ -184,6 +185,9 @@ Outputs:
   KeyAlias:
     Description: KMS Key alias
     Value: !Ref KeyAlias
+  DbTableArn:
+    Description: DynamoDB table ARN
+    Value: !GetAtt DbTable.Arn
   BucketParameterName:
     Condition: GenerateBucketParameter
     Description: Name of the SSM parameter
