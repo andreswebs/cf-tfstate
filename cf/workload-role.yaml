@@ -1,0 +1,78 @@
+---
+AWSTemplateFormatVersion: "2010-09-09"
+Description: IAM role used for infrastructure management in workload accounts
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterLabels:
+      ControllerRoleArn:
+        default: Controller Role ARN
+      RoleName:
+        default: IAM Role Name
+      ControlTagKey:
+        default: Control Tag Key
+      ControlTagValue:
+        default: Control Tag Value
+      ManagedPolicyArn:
+        default: Managed Policy ARN
+    ParameterGroups:
+      - Label:
+          default: Configuration
+        Parameters:
+          - ControllerRoleArn
+          - RoleName
+          - ControlTagKey
+          - ControlTagValue
+          - ManagedPolicyArn
+
+Parameters:
+  ControllerRoleArn:
+    Description: ARN of the IAM role allowed to assume this role
+    Type: String
+  RoleName:
+    Description: Name for the IAM role
+    Type: String
+  ControlTagKey:
+    Description: Tag key used to control access to this role
+    Type: String
+    Default: infrastructure-management
+  ControlTagValue:
+    Description: Tag value used to control access to this role
+    Type: String
+    Default: "true"
+  ManagedPolicyArn:
+    Description: ARN of a managed IAM policy to attach to this role
+    Type: String
+    Default: arn:aws:iam::aws:policy/AdministratorAccess
+
+Resources:
+  Role:
+    Type: AWS::IAM::Role
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Properties:
+      RoleName: !Ref RoleName
+      Path: /
+      Tags:
+        - Key: !Ref ControlTagKey
+          Value: !Ref ControlTagValue
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - sts:AssumeRole
+              - sts:TagSession
+            Principal:
+              AWS:
+                - !Ref ControllerRoleArn
+      ManagedPolicyArns:
+        - !Ref ManagedPolicyArn
+
+Outputs:
+  RoleName:
+    Description: IAM role name
+    Value: !Ref Role
+  RoleArn:
+    Description: IAM role ARN
+    Value: !GetAtt Role.Arn

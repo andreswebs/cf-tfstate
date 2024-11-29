@@ -1,0 +1,70 @@
+---
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Managed policy to allow access to tagged IAM roles
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterLabels:
+      PolicyName:
+        default: Policy Name
+      ControlTagKey:
+        default: Control Tag Key
+      ControlTagValue:
+        default: Control Tag Value
+    ParameterGroups:
+      - Label:
+          default: Configuration
+        Parameters:
+          - PolicyName
+          - ControlTagKey
+          - ControlTagValue
+
+Parameters:
+  PolicyName:
+    Description: The name for the policy
+    Type: String
+  ControlTagKey:
+    Description: Tag key used to control access to target roles
+    Type: String
+    Default: infrastructure-management
+  ControlTagValue:
+    Description: Tag value used to control access to target roles
+    Type: String
+    Default: "true"
+
+Resources:
+  TaggedRolesAccessPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: !Ref PolicyName
+      PolicyDocument:
+        Fn::Sub:
+          - |
+            {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "sts:AssumeRole",
+                    "sts:TagSession"
+                  ],
+                  "Resource": "arn:${AWS::Partition}:iam::*:role/*",
+                  "Condition": {
+                    "StringEquals": {
+                      "${ConditionKey}": "${ConditionValue}"
+                    }
+                  }
+                }
+              ]
+            }
+          - ConditionKey: !Sub aws:ResourceTag/${ControlTagKey}
+            ConditionValue: !Ref ControlTagValue
+
+Outputs:
+  PolicyName:
+    Description: IAM role name
+    Value: !Ref PolicyName
+  PolicyArn:
+    Description: IAM Policy ARN
+    Value: !Ref TaggedRolesAccessPolicy
