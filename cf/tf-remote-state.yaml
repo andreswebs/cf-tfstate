@@ -1,7 +1,7 @@
 ---
 AWSTemplateFormatVersion: "2010-09-09"
 
-Description: S3 bucket, DynamoDB table, and KMS key for Terraform remote state
+Description: S3 bucket, KMS key, and DynamoDB table (deprecated) for Terraform remote state
 
 Metadata:
   AWS::CloudFormation::Interface:
@@ -16,6 +16,8 @@ Metadata:
         default: Bucket Parameter Name
       TableParameterName:
         default: Table Parameter Name
+      CreateTable:
+        default: Create Table?
       KeyParameterName:
         default: Key Parameter Name
     ParameterGroups:
@@ -24,6 +26,7 @@ Metadata:
         Parameters:
           - BucketName
           - TableName
+          - CreateTable
           - KeyName
           - BucketParameterName
           - TableParameterName
@@ -38,7 +41,15 @@ Parameters:
   TableName:
     Description: Name of the DynamoDB table
     Type: String
-    Default: tfstate-lock
+    Default: ""
+
+  CreateTable:
+    Description: Whether to create a DynamoDB table
+    Type: String
+    Default: "false"
+    AllowedValues:
+      - "true"
+      - "false"
 
   KeyName:
     Description: Name of the KMS key in `alias/<KeyName>`
@@ -63,8 +74,13 @@ Parameters:
 Conditions:
   GenerateBucketName: !Equals [!Ref BucketName, ""]
   GenerateTableName: !Equals [!Ref TableName, ""]
+  HasTable: !Equals [!Ref CreateTable, "true"]
   GenerateBucketParameter: !Not [!Equals [!Ref BucketParameterName, ""]]
-  GenerateTableParameter: !Not [!Equals [!Ref TableParameterName, ""]]
+  GenerateTableParameter:
+    !And [
+      !Equals [!Ref CreateTable, "true"],
+      !Not [!Equals [!Ref TableParameterName, ""]],
+    ]
   GenerateKeyParameter: !Not [!Equals [!Ref KeyParameterName, ""]]
 
 Resources:
@@ -121,6 +137,7 @@ Resources:
             NoncurrentVersionExpirationInDays: 365
 
   DbTable:
+    Condition: HasTable
     Type: AWS::DynamoDB::Table
     DeletionPolicy: Retain
     UpdateReplacePolicy: Retain
@@ -179,9 +196,11 @@ Outputs:
     Description: S3 bucket ARN
     Value: !GetAtt S3Bucket.Arn
   DbTableName:
+    Condition: HasTable
     Description: DynamoDB table name
     Value: !Ref DbTable
   DbTableArn:
+    Condition: HasTable
     Description: DynamoDB table ARN
     Value: !GetAtt DbTable.Arn
   KeyAlias:
