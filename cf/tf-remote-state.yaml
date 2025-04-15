@@ -20,6 +20,10 @@ Metadata:
         default: Create Table?
       KeyParameterName:
         default: Key Parameter Name
+      PolicyName:
+        default: IAM Policy Name
+      PolicyPath:
+        default: Policy Path
     ParameterGroups:
       - Label:
           default: Configuration
@@ -31,6 +35,8 @@ Metadata:
           - BucketParameterName
           - TableParameterName
           - KeyParameterName
+          - PolicyName
+          - PolicyPath
 
 Parameters:
   BucketName:
@@ -71,6 +77,16 @@ Parameters:
     Description: (Optional) Name of an SSM parameter to store the key name
     Default: ""
 
+  PolicyName:
+    Type: String
+    Description: (Optional) Name of created managed IAM policy
+    Default: ""
+
+  PolicyPath:
+    Type: String
+    Description: The prefix path for the policy
+    Default: /
+
 Conditions:
   GenerateBucketName: !Equals [!Ref BucketName, ""]
   GenerateTableName: !Equals [!Ref TableName, ""]
@@ -82,6 +98,7 @@ Conditions:
       !Not [!Equals [!Ref TableParameterName, ""]],
     ]
   GenerateKeyParameter: !Not [!Equals [!Ref KeyParameterName, ""]]
+  GeneratePolicyName: !Equals [!Ref PolicyName, ""]
 
 Resources:
   KmsKey:
@@ -188,6 +205,80 @@ Resources:
       Name: !Ref KeyParameterName
       Value: !Ref KeyName
 
+  IAMPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      Path: !Ref PolicyPath
+      ManagedPolicyName: !If
+        - GeneratePolicyName
+        - !Ref AWS::NoValue
+        - !Ref PolicyName
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - s3:ListBucket
+            Resource:
+              - !GetAtt S3Bucket.Arn
+
+          - Effect: Allow
+            Action:
+              - s3:GetObject
+              - s3:PutObject
+              - s3:DeleteObject
+            Resource:
+              - !Sub ${S3Bucket.Arn}/*
+
+          - Effect: Allow
+            Action:
+              - kms:Encrypt
+              - kms:Decrypt
+              - kms:GenerateDataKey
+            Resource:
+              - !GetAtt KmsKey.Arn
+
+          - !If
+            - HasTable
+            - Effect: Allow
+              Action:
+                - dynamodb:DescribeTable
+                - dynamodb:GetItem
+                - dynamodb:PutItem
+                - dynamodb:DeleteItem
+              Resource:
+                - !GetAtt DbTable.Arn
+            - !Ref AWS::NoValue
+
+          - !If
+            - GenerateBucketParameter
+            - Effect: Allow
+              Action:
+                - ssm:GetParameter
+              Resource:
+                - !Sub arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter${BucketParameter}
+            - !Ref AWS::NoValue
+
+          - !If
+            - GenerateTableParameter
+            - Effect: Allow
+              Action:
+                - ssm:GetParameter
+              Resource:
+                - !Sub arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter${TableParameter}
+            - !Ref AWS::NoValue
+
+          - !If
+            - GenerateKeyParameter
+            - Effect: Allow
+              Action:
+                - ssm:GetParameter
+              Resource:
+                - !Sub arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter${KeyParameter}
+            - !Ref AWS::NoValue
+
 Outputs:
   BucketName:
     Description: S3 bucket name
@@ -218,3 +309,6 @@ Outputs:
     Condition: GenerateKeyParameter
     Description: Name of the SSM parameter
     Value: !Ref KeyParameter
+  PolicyArn:
+    Description: IAM Policy ARN
+    Value: !Ref IAMPolicy
